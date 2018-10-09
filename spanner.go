@@ -16,6 +16,12 @@ var jst = time.FixedZone("JST", 9*60*60)
 
 var fieldsCache = sync.Map{}
 
+var colPool = sync.Pool{
+	New: func() interface{} {
+		return &spanner.GenericColumnValue{}
+	},
+}
+
 const (
 	timezoneJST timezone = iota + 1
 
@@ -75,10 +81,15 @@ func ToStruct(row *spanner.Row, ptr interface{}) error {
 		f = cache.(*fields)
 	}
 
-	columns := row.ColumnNames()
-	seen := make(map[string]struct{}, len(columns))
-	tmpCol := &spanner.GenericColumnValue{}
-	for i, name := range columns {
+	size := row.Size()
+	seen := make(map[string]struct{}, size)
+	tmpCol := colPool.Get().(*spanner.GenericColumnValue)
+	defer func() {
+		tmpCol.Type, tmpCol.Value = nil, nil
+		colPool.Put(tmpCol)
+	}()
+	for i := 0; i < size; i++ {
+		name := row.ColumnName(i)
 		if name == "" {
 			return spannerErrorf(codes.InvalidArgument, "unnamed field %v", i)
 		}

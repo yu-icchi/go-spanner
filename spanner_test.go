@@ -5,8 +5,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
-	"github.com/k0kubun/pp"
-	"github.com/stretchr/testify/require"
 )
 
 type Sample struct {
@@ -24,45 +22,45 @@ type Test struct {
 	CreatedAt time.Time `spanner:"created_at" spannerOpt:"jst"`
 }
 
-func TestToStruct(t *testing.T) {
-	s := &Sample{}
-	now := time.Date(2018, 10, 7, 10, 30, 40, 0, jst)
-
-	row, err := spanner.NewRow(
-		[]string{
-			"ID",
-			"foo",
-			"num",
-			"created_at",
-		},
-		[]interface{}{
-			"test",
-			"hoge",
-			100,
-			now,
-		},
-	)
-	require.NoError(t, err)
-
-	err = row.ToStruct(s)
-	require.NoError(t, err)
-	pp.Println(s)
-
-	s2 := &Sample{}
-	err = ToStruct(row, s2)
-	require.NoError(t, err)
-	pp.Println(s2)
-	//assert.Equal(t, &Sample{
-	//	Hoge: Hoge{
-	//		ID: "test",
-	//	},
-	//	Test: Test{
-	//		Num:       100,
-	//		CreatedAt: now,
-	//	},
-	//	Foo: "hoge",
-	//}, s)
-}
+//func TestToStruct(t *testing.T) {
+//	s := &Sample{}
+//	now := time.Date(2018, 10, 7, 10, 30, 40, 0, jst)
+//
+//	row, err := spanner.NewRow(
+//		[]string{
+//			"ID",
+//			"foo",
+//			"num",
+//			"created_at",
+//		},
+//		[]interface{}{
+//			"test",
+//			"hoge",
+//			100,
+//			now,
+//		},
+//	)
+//	require.NoError(t, err)
+//
+//	err = row.ToStruct(s)
+//	require.NoError(t, err)
+//	pp.Println(s)
+//
+//	s2 := &Sample{}
+//	err = ToStruct(row, s2)
+//	require.NoError(t, err)
+//	pp.Println(s2)
+//	//assert.Equal(t, &Sample{
+//	//	Hoge: Hoge{
+//	//		ID: "test",
+//	//	},
+//	//	Test: Test{
+//	//		Num:       100,
+//	//		CreatedAt: now,
+//	//	},
+//	//	Foo: "hoge",
+//	//}, s)
+//}
 
 func BenchmarkNativeToStruct(b *testing.B) {
 	now := time.Date(2018, 10, 7, 10, 30, 40, 0, jst)
