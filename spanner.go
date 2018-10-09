@@ -75,8 +75,10 @@ func ToStruct(row *spanner.Row, ptr interface{}) error {
 		f = cache.(*fields)
 	}
 
-	seen := map[string]struct{}{}
-	for i, name := range row.ColumnNames() {
+	columns := row.ColumnNames()
+	seen := make(map[string]struct{}, len(columns))
+	tmpCol := &spanner.GenericColumnValue{}
+	for i, name := range columns {
 		if name == "" {
 			return spannerErrorf(codes.InvalidArgument, "unnamed field %v", i)
 		}
@@ -91,23 +93,22 @@ func ToStruct(row *spanner.Row, ptr interface{}) error {
 		if _, ok := seen[name]; ok {
 			return spannerErrorf(codes.InvalidArgument, "duplicated field name %q", name)
 		}
-		col := &spanner.GenericColumnValue{}
-		if err := row.Column(i, col); err != nil {
+		if err := row.Column(i, tmpCol); err != nil {
 			return err
 		}
-		if isNull(col.Value) {
+		if isNull(tmpCol.Value) {
 			continue
 		}
-		if err := col.Decode(value.Addr().Interface()); err != nil {
+		if err := tmpCol.Decode(value.Addr().Interface()); err != nil {
 			return err
 		}
 		if field.opt != nil {
 			if field.opt.timezone == timezoneJST {
-				t, ok := value.Interface().(time.Time)
+				t, ok := value.Addr().Interface().(*time.Time)
 				if !ok {
 					return spannerErrorf(codes.InvalidArgument, "invalid timestamp")
 				}
-				value.Set(reflect.ValueOf(t.In(jst)))
+				*t = t.In(jst)
 			}
 		}
 		seen[name] = struct{}{}
@@ -195,8 +196,9 @@ func newField(f reflect.StructField, tag *tag, index, idx []int) *field {
 }
 
 type tag struct {
-	name string
-	opt  *opt
+	name  string
+	isJST bool
+	opt   *opt
 }
 
 func parseTag(t reflect.StructTag) *tag {
@@ -216,7 +218,7 @@ func parseTag(t reflect.StructTag) *tag {
 
 	opt := &opt{}
 	for _, tmp := range strings.Split(tagOption, ",") {
-		switch strings.ToLower(tmp) {
+		switch tmp {
 		case "jst":
 			opt.timezone = timezoneJST
 		}
